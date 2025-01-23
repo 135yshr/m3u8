@@ -18,6 +18,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestDecodeMasterPlaylist(t *testing.T) {
@@ -631,6 +633,9 @@ func TestDecodeMediaPlaylistWithDiscontinuitySeq(t *testing.T) {
 }
 
 func TestDecodeMasterPlaylistWithCustomTags(t *testing.T) {
+	t.Parallel()
+
+	decodingTagError := errors.New("Error decoding tag")
 	cases := []struct {
 		src                  string
 		customDecoders       []CustomDecoder
@@ -648,12 +653,12 @@ func TestDecodeMasterPlaylistWithCustomTags(t *testing.T) {
 			customDecoders: []CustomDecoder{
 				&MockCustomTag{
 					name:          "#CUSTOM-PLAYLIST-TAG:",
-					err:           errors.New("Error decoding tag"),
+					err:           decodingTagError,
 					segment:       false,
 					encodedString: "#CUSTOM-PLAYLIST-TAG:42",
 				},
 			},
-			expectedError:        errors.New("Error decoding tag"),
+			expectedError:        decodingTagError,
 			expectedPlaylistTags: nil,
 		},
 		{
@@ -674,41 +679,29 @@ func TestDecodeMasterPlaylistWithCustomTags(t *testing.T) {
 	}
 
 	for _, testCase := range cases {
-		f, err := os.Open(testCase.src)
+		t.Run(testCase.src, func(t *testing.T) {
+			f, err := os.Open(testCase.src)
+			require.NoError(t, err)
 
-		if err != nil {
-			t.Fatal(err)
-		}
+			p, listType, err := DecodeWith(bufio.NewReader(f), true, testCase.customDecoders)
+			require.ErrorIs(t, err, testCase.expectedError, "expected error %v, got %v", testCase.expectedError, err)
 
-		p, listType, err := DecodeWith(bufio.NewReader(f), true, testCase.customDecoders)
+			if testCase.expectedError != nil {
+				return
+			}
 
-		if !reflect.DeepEqual(err, testCase.expectedError) {
-			t.Fatal(err)
-		}
+			pp := p.(*MasterPlaylist)
 
-		if testCase.expectedError != nil {
-			// No need to make other assertions if we were expecting an error
-			continue
-		}
+			CheckType(t, pp)
 
-		pp := p.(*MasterPlaylist)
-
-		CheckType(t, pp)
-
-		if listType != MASTER {
-			t.Error("Sample not recognized as master playlist.")
-		}
-
-		if len(pp.Custom) != len(testCase.expectedPlaylistTags) {
-			t.Errorf("Did not parse expected number of custom tags. Got: %d Expected: %d", len(pp.Custom), len(testCase.expectedPlaylistTags))
-		} else {
+			require.Equal(t, listType, MASTER, "expected list type %v, got %v", MASTER, listType)
+			require.Equal(t, len(pp.Custom), len(testCase.expectedPlaylistTags), "expected %d custom tags, got %d", len(testCase.expectedPlaylistTags), len(pp.Custom))
 			// we have the same count, lets confirm its the right tags
 			for _, expectedTag := range testCase.expectedPlaylistTags {
-				if _, ok := pp.Custom[expectedTag]; !ok {
-					t.Errorf("Did not parse custom tag %s", expectedTag)
-				}
+				_, ok := pp.Custom[expectedTag]
+				require.True(t, ok, "did not parse custom tag %s", expectedTag)
 			}
-		}
+		})
 	}
 }
 
