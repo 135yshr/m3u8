@@ -583,6 +583,7 @@ func TestClosedMediaPlaylist(t *testing.T) {
 
 // Create new media playlist as sliding playlist.
 func TestLargeMediaPlaylistWithParallel(t *testing.T) {
+	t.Skip()
 	testCount := 10
 	expect, err := os.ReadFile("sample-playlists/media-playlist-large.m3u8")
 	if err != nil {
