@@ -220,7 +220,7 @@ func decode(buf *bytes.Buffer, strict bool, customDecoders []CustomDecoder) (Pla
 	master = NewMasterPlaylist()
 	media, err = NewMediaPlaylist(8, 1024) // Winsize for VoD will become 0, capacity auto extends
 	if err != nil {
-		return nil, 0, fmt.Errorf("Create media playlist failed: %s", err)
+		return nil, 0, fmt.Errorf("create media playlist failed: %s", err)
 	}
 
 	// If we have custom tags to parse
@@ -274,7 +274,7 @@ func decode(buf *bytes.Buffer, strict bool, customDecoders []CustomDecoder) (Pla
 		}
 		return media, MEDIA, nil
 	}
-	return nil, state.listType, errors.New("Can't detect playlist type")
+	return nil, state.listType, errors.New("can't detect playlist type")
 }
 
 // DecodeAttributeList turns an attribute list into a key, value map. You should trim
@@ -507,7 +507,7 @@ func decodeLineOfMediaPlaylist(p *MediaPlaylist, wv *WV, state *decodingState, l
 		duration := line[8:sepIndex]
 		if len(duration) > 0 {
 			if state.duration, err = strconv.ParseFloat(duration, 64); strict && err != nil {
-				return fmt.Errorf("Duration parsing error: %s", err)
+				return fmt.Errorf("duration parsing error: %s", err)
 			}
 		}
 		if len(line) > sepIndex {
@@ -632,7 +632,7 @@ func decodeLineOfMediaPlaylist(p *MediaPlaylist, wv *WV, state *decodingState, l
 			case "TIME-OFFSET":
 				st, err := strconv.ParseFloat(v, 64)
 				if err != nil {
-					return fmt.Errorf("Invalid TIME-OFFSET: %s: %v", v, err)
+					return fmt.Errorf("invalid time-offset: %s: %v", v, err)
 				}
 				p.StartTime = st
 			case "PRECISE":
@@ -666,7 +666,7 @@ func decodeLineOfMediaPlaylist(p *MediaPlaylist, wv *WV, state *decodingState, l
 				state.xmap.URI = v
 			case "BYTERANGE":
 				if _, err = fmt.Sscanf(v, "%d@%d", &state.xmap.Limit, &state.xmap.Offset); strict && err != nil {
-					return fmt.Errorf("Byterange sub-range length value parsing error: %s", err)
+					return fmt.Errorf("byterange sub-range length value parsing error: %s", err)
 				}
 			}
 		}
@@ -683,11 +683,11 @@ func decodeLineOfMediaPlaylist(p *MediaPlaylist, wv *WV, state *decodingState, l
 		state.offset = 0
 		params := strings.SplitN(line[17:], "@", 2)
 		if state.limit, err = strconv.ParseInt(params[0], 10, 64); strict && err != nil {
-			return fmt.Errorf("Byterange sub-range length value parsing error: %s", err)
+			return fmt.Errorf("byterange sub-range length value parsing error: %s", err)
 		}
 		if len(params) > 1 {
 			if state.offset, err = strconv.ParseInt(params[1], 10, 64); strict && err != nil {
-				return fmt.Errorf("Byterange sub-range offset value parsing error: %s", err)
+				return fmt.Errorf("byterange sub-range offset value parsing error: %s", err)
 			}
 		}
 	case !state.tagSCTE35 && strings.HasPrefix(line, "#EXT-SCTE35:"):

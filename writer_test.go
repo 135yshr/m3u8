@@ -13,7 +13,6 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -585,33 +584,40 @@ func TestClosedMediaPlaylist(t *testing.T) {
 // Create new media playlist as sliding playlist.
 func TestLargeMediaPlaylistWithParallel(t *testing.T) {
 	testCount := 10
-	expect, err := ioutil.ReadFile("sample-playlists/media-playlist-large.m3u8")
+	expect, err := os.ReadFile("sample-playlists/media-playlist-large.m3u8")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var wg sync.WaitGroup
+	var errChan = make(chan error, 1)
 	for i := 0; i < testCount; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			f, err := os.Open("sample-playlists/media-playlist-large.m3u8")
 			if err != nil {
-				t.Fatal(err)
+				errChan <- err
+				return
 			}
 			p, err := NewMediaPlaylist(50000, 50000)
 			if err != nil {
-				t.Fatalf("Create media playlist failed: %s", err)
+				errChan <- err
+				return
 			}
 			if err = p.DecodeFrom(bufio.NewReader(f), true); err != nil {
-				t.Fatal(err)
+				errChan <- err
+				return
 			}
 
 			actual := p.Encode().Bytes() // disregard output
-			if bytes.Compare(expect, actual) != 0 {
-				t.Fatal("not matched")
+			if !bytes.Equal(expect, actual) {
+				errChan <- fmt.Errorf("not matched")
 			}
 		}()
-		wg.Wait()
+	}
+	wg.Wait()
+	if err := <-errChan; err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -817,7 +823,7 @@ func TestNewMasterPlaylistWithClosedCaptionEqNone(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create media playlist failed: %s", err)
 	}
-	m.Append(fmt.Sprintf("eng_rendition_rendition.m3u8"), p, *vp)
+	m.Append("eng_rendition_rendition.m3u8", p, *vp)
 
 	expected := "CLOSED-CAPTIONS=NONE"
 	if !strings.Contains(m.String(), expected) {
@@ -826,7 +832,7 @@ func TestNewMasterPlaylistWithClosedCaptionEqNone(t *testing.T) {
 	// quotes need to be include if not eq NONE
 	vp.Captions = "CC1"
 	m2 := NewMasterPlaylist()
-	m2.Append(fmt.Sprintf("eng_rendition_rendition.m3u8"), p, *vp)
+	m2.Append("eng_rendition_rendition.m3u8", p, *vp)
 	expected = `CLOSED-CAPTIONS="CC1"`
 	if !strings.Contains(m2.String(), expected) {
 		t.Fatalf("Master playlist did not contain: %s\nMaster Playlist:\n%v", expected, m2.String())
@@ -971,7 +977,7 @@ func ExampleMediaPlaylist_String() {
 // Create new media playlist
 // Add two segments to media playlist
 // Print it
-func ExampleMediaPlaylist_String_Winsize0() {
+func ExampleMediaPlaylist_String_winsize0() {
 	p, _ := NewMediaPlaylist(0, 2)
 	p.Append("test01.ts", 5.0, "")
 	p.Append("test02.ts", 6.0, "")
@@ -990,7 +996,7 @@ func ExampleMediaPlaylist_String_Winsize0() {
 // Create new media playlist
 // Add two segments to media playlist
 // Print it
-func ExampleMediaPlaylist_String_Winsize0_VOD() {
+func ExampleMediaPlaylist_String_winsize0_vod() {
 	p, _ := NewMediaPlaylist(0, 2)
 	p.Append("test01.ts", 5.0, "")
 	p.Append("test02.ts", 6.0, "")
@@ -1089,7 +1095,7 @@ func ExampleMediaPlaylist_Segments_scte35_67_2014() {
 
 // Range over segments of media playlist. Check for ring buffer corner
 // cases.
-func ExampleMediaPlaylistGetAllSegments() {
+func ExampleMediaPlaylist_GetAllSegments() {
 	m, _ := NewMediaPlaylist(3, 3)
 	_ = m.Append("t00.ts", 10, "")
 	_ = m.Append("t01.ts", 10, "")
