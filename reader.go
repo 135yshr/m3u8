@@ -461,9 +461,10 @@ func decodeLineOfMasterPlaylist(p *MasterPlaylist, state *decodingState, line st
 				state.variant.HDCPLevel = v
 			}
 		}
-	case strings.HasPrefix(line, "#"):
+	case len(line) > 0 && line[0] == '#':
 		// comments are ignored
 	}
+
 	return err
 }
 
@@ -850,7 +851,7 @@ func decodeLineOfMediaPlaylist(p *MediaPlaylist, wv *WV, state *decodingState, l
 		if err == nil {
 			state.tagWV = true
 		}
-	case strings.HasPrefix(line, "#"):
+	case len(line) > 0 && line[0] == '#':
 		// comments are ignored
 	}
 	return err
